@@ -1,4 +1,4 @@
-/* Version: #1 (PoC Lærere - Uten Lyd) */
+/* Version: #2 (BUS Lærerrebus - Uten Lyd) */
 
 // === GLOBALE VARIABLER ===
 let map;
@@ -6,17 +6,19 @@ let currentMapMarker;
 let userPositionMarker;
 let mapElement; 
 let currentTeamData = null; 
-let mapPositionWatchId = null;   // For kartmarkør-oppdatering
+// Lyd-relaterte globale variabler er fjernet
+let mapPositionWatchId = null;   
 let finishMarker = null;
 
 // === GLOBAL KONFIGURASJON ===
 const TOTAL_POSTS = 2; 
 const POST_LOCATIONS = [ 
-    { lat: 60.81260478331276, lng: 10.673852939210269, title: "PoC Post 1", name: "Demonstrasjonssted Alfa"},
-    { lat: 60.81256884286532, lng: 10.673637903646759, title: "PoC Post 2", name: "Demonstrasjonssted Beta"}
+    { lat: 60.81260478331276, lng: 10.673852939210269, title: "Post 1", name: "Demonstrasjonssted Alfa"},
+    { lat: 60.81256884286532, lng: 10.673637903646759, title: "Post 2", name: "Demonstrasjonssted Beta"}
 ];
-const START_LOCATION = { lat: 60.8127, lng: 10.6737, title: "Start Demo-Rebus" }; 
-const FINISH_LOCATION = { lat: 60.8125, lng: 10.6735, title: "Mål Demo" }; 
+// Juster START_LOCATION til å være relevant for de to postene, eller fjern hvis ikke ønskelig med fast startmarkør
+const START_LOCATION = { lat: 60.8127, lng: 10.6737, title: "Startområde Demo" }; 
+const FINISH_LOCATION = { lat: 60.8124, lng: 10.6734, title: "Mål: Lærerværelset (Plassholder)" }; // Oppdatert tittel
 
 // === GOOGLE MAPS API CALLBACK ===
 window.initMap = function() { 
@@ -24,13 +26,14 @@ window.initMap = function() {
     if (!mapElement) { setTimeout(window.initMap, 500); return; }
     const mapStyles = [ { featureType: "all", elementType: "labels", stylers: [{ visibility: "off" }] } ];
     map = new google.maps.Map(mapElement, {
-        center: START_LOCATION, zoom: 18, 
+        center: POST_LOCATIONS[0], // Sentrer på første post i stedet for et separat startpunkt
+        zoom: 18, 
         mapTypeId: google.maps.MapTypeId.SATELLITE, 
         styles: mapStyles, 
         disableDefaultUI: false, streetViewControl: false, fullscreenControl: true,
         mapTypeControlOptions: { style: google.maps.MapTypeControlStyle.DROPDOWN_MENU, mapTypeIds: [google.maps.MapTypeId.SATELLITE, google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.HYBRID] }
     });
-    new google.maps.Marker({ position: START_LOCATION, map: map, title: START_LOCATION.title });
+    // Ingen fast START_LOCATION markør lenger
     
     if (currentTeamData && currentTeamData.completedPostsCount < TOTAL_POSTS) { 
         const currentPostGlobalId = currentTeamData.postSequence[currentTeamData.currentPostArrayIndex];
@@ -38,21 +41,23 @@ window.initMap = function() {
     } else if (currentTeamData && currentTeamData.completedPostsCount >= TOTAL_POSTS) { 
         updateMapMarker(null, true); 
     }
-    if (currentTeamData) { // Start posisjonsoppdatering hvis et spill er i gang
+    if (currentTeamData) { 
         startContinuousUserPositionUpdate();
     }
-    console.log("PoC Google Map initialisert (uten lydfunksjoner)");
+    console.log("BUS Lærerrebus Kart initialisert");
 }
 
 // === GLOBALE KARTFUNKSJONER ===
-function updateMapMarker(postGlobalId, isFinalTarget = false) { if (!map) { return; } clearMapMarker(); clearFinishMarker(); let loc; let title; let iconUrl; if (isFinalTarget) { loc = FINISH_LOCATION; title = FINISH_LOCATION.title; iconUrl = 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png'; finishMarker = new google.maps.Marker({ position: loc, map: map, title: title, animation: google.maps.Animation.DROP, icon: { url: iconUrl } }); } else { if (!postGlobalId || postGlobalId < 1 || postGlobalId > POST_LOCATIONS.length) { return; } loc = POST_LOCATIONS[postGlobalId - 1]; title = `Neste: ${loc.name || loc.title}`; iconUrl = 'https://maps.google.com/mapfiles/ms/icons/red-dot.png'; currentMapMarker = new google.maps.Marker({ position: loc, map: map, title: title, animation: google.maps.Animation.DROP, icon: { url: iconUrl } }); } if(loc) { map.panTo(loc); if (map.getZoom() < 18) map.setZoom(18); } }
+// ... (updateMapMarker, clearMapMarker, clearFinishMarker, handleGeolocationError som i versjon #21) ...
+function updateMapMarker(postGlobalId, isFinalTarget = false) { if (!map) { console.warn("Kart ikke initialisert for updateMapMarker."); return; } clearMapMarker(); clearFinishMarker(); let location; let markerTitle; let markerIconUrl; if (isFinalTarget) { location = FINISH_LOCATION; markerTitle = FINISH_LOCATION.title; markerIconUrl = 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png'; finishMarker = new google.maps.Marker({ position: { lat: location.lat, lng: location.lng }, map: map, title: markerTitle, animation: google.maps.Animation.DROP, icon: { url: markerIconUrl } }); } else { if (!postGlobalId || postGlobalId < 1 || postGlobalId > POST_LOCATIONS.length) { return; } location = POST_LOCATIONS[postGlobalId - 1]; markerTitle = `Neste: ${location.name || location.title}`; markerIconUrl = 'https://maps.google.com/mapfiles/ms/icons/red-dot.png'; currentMapMarker = new google.maps.Marker({ position: { lat: location.lat, lng: location.lng }, map: map, title: markerTitle, animation: google.maps.Animation.DROP, icon: { url: markerIconUrl } }); } if(location) { map.panTo({ lat: location.lat, lng: location.lng }); if (map.getZoom() < 18) map.setZoom(18); } }
 function clearMapMarker() { if (currentMapMarker) { currentMapMarker.setMap(null); currentMapMarker = null; } }
 function clearFinishMarker() { if (finishMarker) { finishMarker.setMap(null); finishMarker = null; } }
 function handleGeolocationError(error) { let msg = "Posisjonsfeil: "; switch (error.code) { case error.PERMISSION_DENIED: msg += "Nektet."; break; case error.POSITION_UNAVAILABLE: msg += "Utilgjengelig."; break; case error.TIMEOUT: msg += "Timeout."; break; default: msg += "Ukjent."; } console.warn(msg); }
 
+
 // === KARTPOSISJON FUNKSJONER (uten lydpiping) ===
 function updateUserPositionOnMap(position) { if (!map) return; const userPos = { lat: position.coords.latitude, lng: position.coords.longitude }; if (userPositionMarker) { userPositionMarker.setPosition(userPos); } else { userPositionMarker = new google.maps.Marker({ position: userPos, map: map, title: "Din Posisjon", icon: { path: google.maps.SymbolPath.CIRCLE, scale: 7, fillColor: "#1976D2", fillOpacity: 1, strokeWeight: 2, strokeColor: "white" } }); } }
-function handlePositionUpdate(position) { updateUserPositionOnMap(position); } // Kaller kun kartoppdatering
+function handlePositionUpdate(position) { updateUserPositionOnMap(position); } 
 
 function startContinuousUserPositionUpdate() {
     if (!navigator.geolocation) { console.warn("Geolocation ikke støttet."); return; } 
@@ -72,6 +77,7 @@ function stopContinuousUserPositionUpdate() {
     }
 }
 
+
 document.addEventListener('DOMContentLoaded', () => {
     const teamCodeInput = document.getElementById('team-code-input');
     const startWithTeamCodeButton = document.getElementById('start-with-team-code-button');
@@ -82,26 +88,142 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
     const devResetButtons = document.querySelectorAll('.dev-reset-button');
+    const scoreDisplayElement = document.getElementById('score-display'); // NYTT
+    const currentScoreSpan = document.getElementById('current-score'); // NYTT
+    const finalScoreSpan = document.getElementById('final-score'); // NYTT
     
     const TEAM_CONFIG = {
-        "GRUPPEA": { name: "Demo Gruppe Alfa", startPostId: "post-1-page", postSequence: [1, 2] },
-        "GRUPPEB": { name: "Demo Gruppe Bravo", startPostId: "post-1-page", postSequence: [1, 2] } 
+        "TEAM1": { name: "Lærerteam 1", startPostId: "post-1-page", postSequence: [1, 2] },
+        "TEAM2": { name: "Lærerteam 2", startPostId: "post-2-page", postSequence: [2, 1] } // Starter på post 2
     };
-    const POST_UNLOCK_CODES = { post1: "ALPHA", post2: "BETA" };
-    const CORRECT_TASK_ANSWERS = { post1: "PIANO", post2: "VELKOMMEN" };
+    const POST_UNLOCK_CODES = { post1: "PEDAGOG", post2: "LARING" }; // Nye koder for lærere
+    const CORRECT_TASK_ANSWERS = { 
+        post1: "RICHARD HØGÅS", // Svar på "Hva heter skolesjefen i Gjøvik?"
+        post2: "KNUT PHARO"      // Svar på "Hvem var rektor da nye Bjørnsveen ble bygd?"
+    };
+    const MAX_ATTEMPTS_PER_TASK = 5;
+    const POINTS_PER_CORRECT_TASK = 5;
+    const POINTS_DEDUCTION_PER_WRONG_TASK_ANSWER = 1;
 
-    function updatePageText(pageElement, teamPostNumber, globalPostId) { const titleElement = pageElement.querySelector('.post-title-placeholder'); const introElement = pageElement.querySelector('.post-intro-placeholder'); if (titleElement) { titleElement.textContent = `Gruppeoppgave ${teamPostNumber} av ${TOTAL_POSTS}`; } if (introElement) { const postDetails = POST_LOCATIONS[globalPostId -1]; let postName = postDetails ? postDetails.name : `Post ${globalPostId}`; introElement.textContent = `Velkommen til ${postName}. Finn ankomstkoden for å låse opp oppgaven.`; if (teamPostNumber === TOTAL_POSTS) { if(titleElement) titleElement.textContent = `Siste Gruppeoppgave (${teamPostNumber} av ${TOTAL_POSTS})`; introElement.textContent = `Dette er siste oppgave før målgang! Finn ankomstkoden ved ${postName}.`; } } }
-    function showRebusPage(pageId) { pages.forEach(page => page.classList.remove('visible')); const nextPageElement = document.getElementById(pageId); if (nextPageElement) { nextPageElement.classList.add('visible'); const container = document.querySelector('.container'); if (container) window.scrollTo({ top: container.offsetTop - 20, behavior: 'smooth' }); if (currentTeamData && pageId.startsWith('post-')) { const globalPostNum = parseInt(pageId.split('-')[1]); const teamPostNum = currentTeamData.postSequence.indexOf(globalPostNum) + 1; updatePageText(nextPageElement, teamPostNum, globalPostNum); } resetPageUI(pageId); } else { console.error("Side ikke funnet:", pageId); clearState(); showRebusPage('intro-page'); } }
-    function showTabContent(tabId) { tabContents.forEach(content => content.classList.remove('visible')); const nextContent = document.getElementById(tabId + '-content'); if (nextContent) nextContent.classList.add('visible'); else console.error("Tab-innhold ikke funnet:", tabId + '-content'); tabButtons.forEach(button => { button.classList.remove('active'); if (button.getAttribute('data-tab') === tabId) button.classList.add('active'); }); }
-    function saveState() { if (currentTeamData) localStorage.setItem('activeTeamData', JSON.stringify(currentTeamData)); else localStorage.removeItem('activeTeamData'); }
-    function loadState() { const savedData = localStorage.getItem('activeTeamData'); if (savedData) { try { currentTeamData = JSON.parse(savedData); if (!currentTeamData || typeof currentTeamData.completedPostsCount === 'undefined' || !currentTeamData.postSequence || !currentTeamData.unlockedPosts || currentTeamData.postSequence.length > TOTAL_POSTS ) { clearState(); return false; } return true; } catch (e) { clearState(); return false; } } currentTeamData = null; return false; }
-    function clearState() { localStorage.removeItem('activeTeamData'); currentTeamData = null; resetAllPostUIs(); clearMapMarker(); clearFinishMarker(); if (userPositionMarker) { userPositionMarker.setMap(null); userPositionMarker = null; } stopContinuousUserPositionUpdate(); }
-    function resetPageUI(pageId) { if (pageId === 'intro-page' || pageId === 'finale-page') return; const postNumberMatch = pageId.match(/post-(\d+)-page/); if (!postNumberMatch) return; const postNum = postNumberMatch[1]; const unlockSection = document.querySelector(`#post-${postNum}-page .post-unlock-section`); const taskSection = document.querySelector(`#post-${postNum}-page .post-task-section`); const unlockInput = document.getElementById(`post-${postNum}-unlock-input`); const unlockButton = document.querySelector(`#post-${postNum}-page .unlock-post-btn`); const unlockFeedback = document.getElementById(`feedback-unlock-${postNum}`); const taskInput = document.getElementById(`post-${postNum}-task-input`); const taskButton = document.querySelector(`#post-${postNum}-page .check-task-btn`); const taskFeedback = document.getElementById(`feedback-task-${postNum}`); const isPostUnlocked = currentTeamData?.unlockedPosts?.[`post${postNum}`]; const isTaskCompleted = currentTeamData?.completedGlobalPosts?.[`post${postNum}`]; if (unlockSection && taskSection) { if (isTaskCompleted) { unlockSection.style.display = 'none'; taskSection.style.display = 'block'; if (taskInput) { taskInput.disabled = true; } if (taskButton) taskButton.disabled = true; if (taskFeedback) { taskFeedback.textContent = 'Oppgave fullført!'; taskFeedback.className = 'feedback success'; } } else if (isPostUnlocked) { unlockSection.style.display = 'none'; taskSection.style.display = 'block'; if (taskInput) { taskInput.disabled = false; taskInput.value = ''; } if (taskButton) taskButton.disabled = false; if (taskFeedback) { taskFeedback.textContent = ''; taskFeedback.className = 'feedback'; } } else { unlockSection.style.display = 'block'; taskSection.style.display = 'none'; if (unlockInput) { unlockInput.disabled = false; unlockInput.value = ''; } if (unlockButton) unlockButton.disabled = false; if (unlockFeedback) { unlockFeedback.textContent = ''; unlockFeedback.className = 'feedback'; } } } }
-    function resetAllPostUIs() { for (let i = 1; i <= TOTAL_POSTS; i++) { if (i > 2 && document.getElementById(`post-${i}-page`)) continue; const pageElement = document.getElementById(`post-${i}-page`); if (!pageElement) continue; const unlockSection = pageElement.querySelector('.post-unlock-section'); const taskSection = pageElement.querySelector('.post-task-section'); const unlockInput = document.getElementById(`post-${i}-unlock-input`); const unlockButton = pageElement.querySelector('.unlock-post-btn'); const unlockFeedback = document.getElementById(`feedback-unlock-${i}`); const taskInput = document.getElementById(`post-${i}-task-input`); const taskButton = pageElement.querySelector('.check-task-btn'); const taskFeedback = document.getElementById(`feedback-task-${i}`); if(unlockSection) unlockSection.style.display = 'block'; if(taskSection) taskSection.style.display = 'none'; if(unlockInput) { unlockInput.value = ''; unlockInput.disabled = false; } if(unlockButton) unlockButton.disabled = false; if(unlockFeedback) { unlockFeedback.textContent = ''; unlockFeedback.className = 'feedback'; } if(taskInput) { taskInput.value = ''; taskInput.disabled = false; } if(taskButton) taskButton.disabled = false; if(taskFeedback) { taskFeedback.textContent = ''; taskFeedback.className = 'feedback'; } const titlePlaceholder = pageElement.querySelector('.post-title-placeholder'); if(titlePlaceholder) titlePlaceholder.textContent = "Neste Post: Finn Ankomstkoden! 🗝️"; const introPlaceholder = pageElement.querySelector('.post-intro-placeholder'); if(introPlaceholder) introPlaceholder.textContent = "Finn ankomstkoden på stedet for å låse opp oppgaven."; } if(teamCodeInput) teamCodeInput.value = ''; if(teamCodeFeedback) { teamCodeFeedback.textContent = ''; teamCodeFeedback.className = 'feedback';} }
-    function initializeTeam(teamCode) { const teamKey = teamCode.trim().toUpperCase(); const config = TEAM_CONFIG[teamKey]; teamCodeFeedback.className = 'feedback'; teamCodeFeedback.textContent = ''; if (config) { currentTeamData = { ...config, id: teamKey, currentPostArrayIndex: 0, completedPostsCount: 0, completedGlobalPosts: {}, unlockedPosts: {} }; saveState(); resetAllPostUIs(); clearFinishMarker(); const firstPostInSequence = currentTeamData.postSequence[0]; showRebusPage(`post-${firstPostInSequence}-page`); if (map) updateMapMarker(firstPostInSequence, false); else console.warn("Kart ikke klart ved lagstart for å sette markør."); startContinuousUserPositionUpdate(); console.log(`Team ${currentTeamData.name} startet! Deres ${currentTeamData.currentPostArrayIndex + 1}. post (globalt: ${firstPostInSequence})`); } else { teamCodeFeedback.textContent = 'Ugyldig gruppekode!'; teamCodeFeedback.classList.add('error', 'shake'); setTimeout(() => teamCodeFeedback.classList.remove('shake'), 400); if (teamCodeInput) { teamCodeInput.classList.add('shake'); setTimeout(() => teamCodeInput.classList.remove('shake'), 400); teamCodeInput.focus(); teamCodeInput.select(); } } }
-    function handlePostUnlock(postNum, userAnswer) { const unlockInput = document.getElementById(`post-${postNum}-unlock-input`); const feedbackElement = document.getElementById(`feedback-unlock-${postNum}`); if (!currentTeamData) { console.error("currentTeamData er null i handlePostUnlock"); if (feedbackElement) { feedbackElement.textContent = 'Feil: Gruppe ikke startet.'; feedbackElement.className = 'feedback error';} return; } const correctUnlockCode = POST_UNLOCK_CODES[`post${postNum}`]; feedbackElement.className = 'feedback'; feedbackElement.textContent = ''; if (!userAnswer) { feedbackElement.textContent = 'Skriv ankomstkoden!'; feedbackElement.classList.add('error', 'shake'); unlockInput.classList.add('shake'); setTimeout(() => { feedbackElement.classList.remove('shake'); unlockInput.classList.remove('shake'); }, 400); return; } if (userAnswer === correctUnlockCode.toUpperCase() || userAnswer === 'ÅPNE') { feedbackElement.textContent = 'Post låst opp! Her er oppgaven:'; feedbackElement.classList.add('success'); if (unlockInput) unlockInput.disabled = true; document.querySelector(`#post-${postNum}-page .unlock-post-btn`).disabled = true; if (!currentTeamData.unlockedPosts) currentTeamData.unlockedPosts = {}; currentTeamData.unlockedPosts[`post${postNum}`] = true; saveState(); setTimeout(() => { resetPageUI(`post-${postNum}-page`); }, 800); } else { feedbackElement.textContent = 'Feil ankomstkode. Prøv igjen!'; feedbackElement.classList.add('error', 'shake'); unlockInput.classList.add('shake'); setTimeout(() => { feedbackElement.classList.remove('shake'); unlockInput.classList.remove('shake'); }, 400); unlockInput.focus(); unlockInput.select(); } }
-    function handleTaskCheck(postNum, userAnswer) { const taskInput = document.getElementById(`post-${postNum}-task-input`); const feedbackElement = document.getElementById(`feedback-task-${postNum}`); if (!currentTeamData) { console.error("currentTeamData er null i handleTaskCheck"); if(feedbackElement) {feedbackElement.textContent = 'Feil: Gruppe ikke startet.'; feedbackElement.className = 'feedback error';} return; } let correctTaskAnswer = CORRECT_TASK_ANSWERS[`post${postNum}`]; /* Ingen alternative svar i PoC */ feedbackElement.className = 'feedback'; feedbackElement.textContent = ''; if (!userAnswer) { feedbackElement.textContent = 'Svar på oppgaven!'; feedbackElement.classList.add('error', 'shake'); if(taskInput) taskInput.classList.add('shake'); setTimeout(() => { feedbackElement.classList.remove('shake'); if(taskInput) taskInput.classList.remove('shake'); }, 400); return; } const isCorrect = (userAnswer === correctTaskAnswer.toUpperCase() || userAnswer === 'FASIT'); if (isCorrect) { feedbackElement.textContent = userAnswer === 'FASIT' ? 'FASIT godkjent!' : 'Korrekt svar!'; feedbackElement.classList.add('success'); if (taskInput) taskInput.disabled = true; const taskButton = document.querySelector(`#post-${postNum}-page .check-task-btn`); if(taskButton) taskButton.disabled = true; if (!currentTeamData.completedGlobalPosts[`post${postNum}`]) { currentTeamData.completedGlobalPosts[`post${postNum}`] = true; currentTeamData.completedPostsCount++; } currentTeamData.currentPostArrayIndex++; saveState(); if (currentTeamData.completedPostsCount < TOTAL_POSTS) { if (currentTeamData.currentPostArrayIndex < currentTeamData.postSequence.length) { const nextPostGlobalId = currentTeamData.postSequence[currentTeamData.currentPostArrayIndex]; setTimeout(() => { showRebusPage(`post-${nextPostGlobalId}-page`); if (map) updateMapMarker(nextPostGlobalId, false); }, 1200); } else { console.warn("Færre enn TOTAL_POSTS, men ingen flere i sekvens. Viser finale."); setTimeout(() => { showRebusPage('finale-page'); if (map) updateMapMarker(null, true); stopContinuousUserPositionUpdate(); }, 1200); } } else { setTimeout(() => { showRebusPage('finale-page'); if (map) updateMapMarker(null, true); stopContinuousUserPositionUpdate(); }, 1200); } } else { feedbackElement.textContent = 'Feil svar, prøv igjen.'; feedbackElement.classList.add('error', 'shake'); if(taskInput) { taskInput.classList.add('shake'); setTimeout(() => { taskInput.classList.remove('shake'); }, 400); taskInput.focus(); taskInput.select(); } setTimeout(() => { feedbackElement.classList.remove('shake'); }, 400); } }
-    function updateUIAfterLoad() { if (!currentTeamData) { resetAllPostUIs(); return; } for (let i = 1; i <= TOTAL_POSTS; i++) { if (document.getElementById(`post-${i}-page`)) resetPageUI(`post-${i}-page`); } }
+    // === KJERNEFUNKSJONER (DOM-avhengige) ===
+    function updateScoreDisplay() {
+        if (currentTeamData && scoreDisplayElement && currentScoreSpan) {
+            currentScoreSpan.textContent = currentTeamData.score;
+            scoreDisplayElement.style.display = 'block';
+        }
+        if (finalScoreSpan && currentTeamData) { // Oppdater også på finalesiden
+            finalScoreSpan.textContent = currentTeamData.score;
+        }
+    }
+
+    function updatePageText(pageElement, teamPostNumber, globalPostId) { /* ... (som i versjon #22, men juster tekst for "Lærerrebus") ... */ const titleElement = pageElement.querySelector('.post-title-placeholder'); const introElement = pageElement.querySelector('.post-intro-placeholder'); if (titleElement) { titleElement.textContent = `Oppdrag ${teamPostNumber} av ${TOTAL_POSTS}: Ankomstkode`; } if (introElement) { const postDetails = POST_LOCATIONS[globalPostId -1]; let postName = postDetails ? postDetails.name : `Post ${globalPostId}`; introElement.textContent = `Velkommen til ${postName}. Finn ankomstkoden på stedet for å låse opp oppgaven.`; if (teamPostNumber === TOTAL_POSTS) { if(titleElement) titleElement.textContent = `Siste Oppdrag (${teamPostNumber} av ${TOTAL_POSTS}): Ankomstkode`; introElement.textContent = `Dette er siste oppgave før målgang! Finn ankomstkoden ved ${postName}.`; } } }
+    function showRebusPage(pageId) { /* ... (som i versjon #22, men kall updateScoreDisplay) ... */ pages.forEach(page => page.classList.remove('visible')); const nextPageElement = document.getElementById(pageId); if (nextPageElement) { nextPageElement.classList.add('visible'); const container = document.querySelector('.container'); if (container) window.scrollTo({ top: container.offsetTop - 20, behavior: 'smooth' }); if (currentTeamData && pageId.startsWith('post-')) { const globalPostNum = parseInt(pageId.split('-')[1]); const teamPostNum = currentTeamData.postSequence.indexOf(globalPostNum) + 1; updatePageText(nextPageElement, teamPostNum, globalPostNum); } resetPageUI(pageId); if (currentTeamData && pageId !== 'intro-page' && pageId !== 'finale-page') { updateScoreDisplay(); } else if (scoreDisplayElement && pageId !== 'finale-page') { scoreDisplayElement.style.display = 'none'; } if (pageId === 'finale-page' && finalScoreSpan && currentTeamData) { finalScoreSpan.textContent = currentTeamData.score; } } else { console.error("Side ikke funnet:", pageId); clearState(); showRebusPage('intro-page'); } }
+    function showTabContent(tabId) { /* ... (som i versjon #22) ... */ tabContents.forEach(content => content.classList.remove('visible')); const nextContent = document.getElementById(tabId + '-content'); if (nextContent) nextContent.classList.add('visible'); else console.error("Tab-innhold ikke funnet:", tabId + '-content'); tabButtons.forEach(button => { button.classList.remove('active'); if (button.getAttribute('data-tab') === tabId) button.classList.add('active'); }); }
+    function saveState() { /* ... (som i versjon #22) ... */ if (currentTeamData) localStorage.setItem('activeTeamData', JSON.stringify(currentTeamData)); else localStorage.removeItem('activeTeamData'); }
+    function loadState() { /* ... (som i versjon #22, men sjekk poengsum og forsøk) ... */ const savedData = localStorage.getItem('activeTeamData'); if (savedData) { try { currentTeamData = JSON.parse(savedData); if (!currentTeamData || typeof currentTeamData.completedPostsCount === 'undefined' || !currentTeamData.postSequence || !currentTeamData.unlockedPosts || typeof currentTeamData.score === 'undefined' || !currentTeamData.taskAttempts || currentTeamData.postSequence.length > TOTAL_POSTS ) { clearState(); return false; } return true; } catch (e) { clearState(); return false; } } currentTeamData = null; return false; }
+    function clearState() { /* ... (som i versjon #22, men skjul poengsum) ... */ localStorage.removeItem('activeTeamData'); currentTeamData = null; resetAllPostUIs(); clearMapMarker(); clearFinishMarker(); if (userPositionMarker) { userPositionMarker.setMap(null); userPositionMarker = null; } stopContinuousUserPositionUpdate(); if(scoreDisplayElement) scoreDisplayElement.style.display = 'none'; }
+    function resetPageUI(pageId) { /* ... (som i versjon #22, men nullstill forsøksteller) ... */ if (pageId === 'intro-page' || pageId === 'finale-page') return; const postNumberMatch = pageId.match(/post-(\d+)-page/); if (!postNumberMatch) return; const postNum = postNumberMatch[1]; const unlockSection = document.querySelector(`#post-${postNum}-page .post-unlock-section`); const taskSection = document.querySelector(`#post-${postNum}-page .post-task-section`); const unlockInput = document.getElementById(`post-${postNum}-unlock-input`); const unlockButton = document.querySelector(`#post-${postNum}-page .unlock-post-btn`); const unlockFeedback = document.getElementById(`feedback-unlock-${postNum}`); const taskInput = document.getElementById(`post-${postNum}-task-input`); const taskButton = document.querySelector(`#post-${postNum}-page .check-task-btn`); const taskFeedback = document.getElementById(`feedback-task-${postNum}`); const attemptCounterElement = document.getElementById(`attempts-${postNum}`); if(attemptCounterElement) attemptCounterElement.textContent = ''; const isPostUnlocked = currentTeamData?.unlockedPosts?.[`post${postNum}`]; const isTaskCompleted = currentTeamData?.completedGlobalPosts?.[`post${postNum}`]; if (unlockSection && taskSection) { if (isTaskCompleted) { unlockSection.style.display = 'none'; taskSection.style.display = 'block'; if (taskInput) { taskInput.disabled = true; } if (taskButton) taskButton.disabled = true; if (taskFeedback) { taskFeedback.textContent = 'Oppgave fullført!'; taskFeedback.className = 'feedback success'; } } else if (isPostUnlocked) { unlockSection.style.display = 'none'; taskSection.style.display = 'block'; if (taskInput) { taskInput.disabled = false; taskInput.value = ''; } if (taskButton) taskButton.disabled = false; if (taskFeedback) { taskFeedback.textContent = ''; taskFeedback.className = 'feedback'; } if (attemptCounterElement && currentTeamData && currentTeamData.taskAttempts && currentTeamData.taskAttempts[`post${postNum}`] !== undefined) { const attemptsLeft = MAX_ATTEMPTS_PER_TASK - currentTeamData.taskAttempts[`post${postNum}`]; attemptCounterElement.textContent = `Forsøk igjen: ${attemptsLeft > 0 ? attemptsLeft : 0}`; } } else { unlockSection.style.display = 'block'; taskSection.style.display = 'none'; if (unlockInput) { unlockInput.disabled = false; unlockInput.value = ''; } if (unlockButton) unlockButton.disabled = false; if (unlockFeedback) { unlockFeedback.textContent = ''; unlockFeedback.className = 'feedback'; } } } }
+    function resetAllPostUIs() { /* ... (som i versjon #22, men nullstill forsøkstellere) ... */ for (let i = 1; i <= TOTAL_POSTS; i++) { if (i > 2 && document.getElementById(`post-${i}-page`)) continue; const pageElement = document.getElementById(`post-${i}-page`); if (!pageElement) continue; const unlockSection = pageElement.querySelector('.post-unlock-section'); const taskSection = pageElement.querySelector('.post-task-section'); const unlockInput = document.getElementById(`post-${i}-unlock-input`); const unlockButton = pageElement.querySelector('.unlock-post-btn'); const unlockFeedback = document.getElementById(`feedback-unlock-${i}`); const taskInput = document.getElementById(`post-${i}-task-input`); const taskButton = pageElement.querySelector('.check-task-btn'); const taskFeedback = document.getElementById(`feedback-task-${i}`); const attemptCounterElement = document.getElementById(`attempts-${i}`); if(unlockSection) unlockSection.style.display = 'block'; if(taskSection) taskSection.style.display = 'none'; if(unlockInput) { unlockInput.value = ''; unlockInput.disabled = false; } if(unlockButton) unlockButton.disabled = false; if(unlockFeedback) { unlockFeedback.textContent = ''; unlockFeedback.className = 'feedback'; } if(taskInput) { taskInput.value = ''; taskInput.disabled = false; } if(taskButton) taskButton.disabled = false; if(taskFeedback) { taskFeedback.textContent = ''; taskFeedback.className = 'feedback'; } if(attemptCounterElement) attemptCounterElement.textContent = ''; const titlePlaceholder = pageElement.querySelector('.post-title-placeholder'); if(titlePlaceholder) titlePlaceholder.textContent = "Post: Ankomstkode"; const introPlaceholder = pageElement.querySelector('.post-intro-placeholder'); if(introPlaceholder) introPlaceholder.textContent = "Finn ankomstkoden på stedet for å låse opp oppgaven."; } if(teamCodeInput) teamCodeInput.value = ''; if(teamCodeFeedback) { teamCodeFeedback.textContent = ''; teamCodeFeedback.className = 'feedback';} }
+    function initializeTeam(teamCode) { /* ... (som i versjon #22, men legg til score og attempts, og vis poengsum) ... */ const teamKey = teamCode.trim().toUpperCase(); const config = TEAM_CONFIG[teamKey]; teamCodeFeedback.className = 'feedback'; teamCodeFeedback.textContent = ''; if (config) { currentTeamData = { ...config, id: teamKey, currentPostArrayIndex: 0, completedPostsCount: 0, completedGlobalPosts: {}, unlockedPosts: {}, score: 0, taskAttempts: {} }; saveState(); resetAllPostUIs(); clearFinishMarker(); updateScoreDisplay(); const firstPostInSequence = currentTeamData.postSequence[0]; showRebusPage(`post-${firstPostInSequence}-page`); if (map) updateMapMarker(firstPostInSequence, false); else console.warn("Kart ikke klart ved lagstart for å sette markør."); startContinuousUserPositionUpdate(); console.log(`Team ${currentTeamData.name} startet! Deres ${currentTeamData.currentPostArrayIndex + 1}. post (globalt: ${firstPostInSequence})`); } else { teamCodeFeedback.textContent = 'Ugyldig gruppekode!'; teamCodeFeedback.classList.add('error', 'shake'); setTimeout(() => teamCodeFeedback.classList.remove('shake'), 400); if (teamCodeInput) { teamCodeInput.classList.add('shake'); setTimeout(() => teamCodeInput.classList.remove('shake'), 400); teamCodeInput.focus(); teamCodeInput.select(); } } }
+    function handlePostUnlock(postNum, userAnswer) { /* ... (som i versjon #22) ... */ const unlockInput = document.getElementById(`post-${postNum}-unlock-input`); const feedbackElement = document.getElementById(`feedback-unlock-${postNum}`); if (!currentTeamData) { console.error("currentTeamData er null i handlePostUnlock"); if (feedbackElement) { feedbackElement.textContent = 'Feil: Gruppe ikke startet.'; feedbackElement.className = 'feedback error';} return; } const correctUnlockCode = POST_UNLOCK_CODES[`post${postNum}`]; feedbackElement.className = 'feedback'; feedbackElement.textContent = ''; if (!userAnswer) { feedbackElement.textContent = 'Skriv ankomstkoden!'; feedbackElement.classList.add('error', 'shake'); unlockInput.classList.add('shake'); setTimeout(() => { feedbackElement.classList.remove('shake'); unlockInput.classList.remove('shake'); }, 400); return; } if (userAnswer === correctUnlockCode.toUpperCase() || userAnswer === 'ÅPNE') { feedbackElement.textContent = 'Post låst opp! Her er oppgaven:'; feedbackElement.classList.add('success'); if (unlockInput) unlockInput.disabled = true; document.querySelector(`#post-${postNum}-page .unlock-post-btn`).disabled = true; if (!currentTeamData.unlockedPosts) currentTeamData.unlockedPosts = {}; currentTeamData.unlockedPosts[`post${postNum}`] = true; currentTeamData.taskAttempts[`post${postNum}`] = 0; /* Nullstill forsøk for denne oppgaven */ saveState(); setTimeout(() => { resetPageUI(`post-${postNum}-page`); updateScoreDisplay(); /* Vis poengsum når oppgaven vises */ }, 800); } else { feedbackElement.textContent = 'Feil ankomstkode. Prøv igjen!'; feedbackElement.classList.add('error', 'shake'); unlockInput.classList.add('shake'); setTimeout(() => { feedbackElement.classList.remove('shake'); unlockInput.classList.remove('shake'); }, 400); unlockInput.focus(); unlockInput.select(); } }
+    
+    function proceedToNextPostOrFinish(postNum) {
+        // Felles logikk for å gå videre etter korrekt svar eller maks feil forsøk
+        currentTeamData.currentPostArrayIndex++;
+        saveState(); 
+        hasPlayedTargetReachedSound = false; 
+
+        if (currentTeamData.completedPostsCount < TOTAL_POSTS) {
+            if (currentTeamData.currentPostArrayIndex < currentTeamData.postSequence.length) {
+                const nextPostGlobalId = currentTeamData.postSequence[currentTeamData.currentPostArrayIndex];
+                setTimeout(() => {
+                    showRebusPage(`post-${nextPostGlobalId}-page`);
+                    if (map) updateMapMarker(nextPostGlobalId, false);
+                }, 1200);
+            } else { // Skulle ikke skje hvis completedPostsCount < TOTAL_POSTS, men som fallback
+                console.warn("Færre enn TOTAL_POSTS, men ingen flere i sekvens. Viser finale.");
+                setTimeout(() => { showRebusPage('finale-page'); if (map) updateMapMarker(null, true); stopContinuousUserPositionUpdate(); }, 1200);
+            }
+        } else { // Alle poster er fullført (selv om denne spesifikke kanskje ikke ga poeng)
+            setTimeout(() => { showRebusPage('finale-page'); if (map) updateMapMarker(null, true); stopContinuousUserPositionUpdate(); }, 1200);
+        }
+    }
+
+    function handleTaskCheck(postNum, userAnswer) {
+        const taskInput = document.getElementById(`post-${postNum}-task-input`);
+        const feedbackElement = document.getElementById(`feedback-task-${postNum}`);
+        const attemptCounterElement = document.getElementById(`attempts-${postNum}`);
+
+        if (!currentTeamData) { /* ... (feilhåndtering som før) ... */ console.error("currentTeamData er null i handleTaskCheck"); if(feedbackElement) {feedbackElement.textContent = 'Feil: Gruppe ikke startet.'; feedbackElement.className = 'feedback error';} return; }
+        
+        let correctTaskAnswer = CORRECT_TASK_ANSWERS[`post${postNum}`];
+        feedbackElement.className = 'feedback'; feedbackElement.textContent = '';
+
+        if (!userAnswer) { /* ... (feilhåndtering som før) ... */ feedbackElement.textContent = 'Svar på oppgaven!'; feedbackElement.classList.add('error', 'shake'); if(taskInput) taskInput.classList.add('shake'); setTimeout(() => { feedbackElement.classList.remove('shake'); if(taskInput) taskInput.classList.remove('shake'); }, 400); return; }
+
+        const isCorrect = (userAnswer.toUpperCase() === correctTaskAnswer.toUpperCase() || userAnswer.toUpperCase() === 'FASIT');
+        
+        if (!currentTeamData.taskAttempts[`post${postNum}`]) {
+            currentTeamData.taskAttempts[`post${postNum}`] = 0;
+        }
+
+        if (isCorrect) {
+            feedbackElement.textContent = userAnswer.toUpperCase() === 'FASIT' ? 'FASIT godkjent! (Ingen poeng)' : 'Korrekt svar!';
+            feedbackElement.classList.add('success');
+            if (taskInput) taskInput.disabled = true;
+            const taskButton = document.querySelector(`#post-${postNum}-page .check-task-btn`);
+            if(taskButton) taskButton.disabled = true;
+
+            if (userAnswer.toUpperCase() !== 'FASIT') { // Gi poeng kun hvis ikke fasit
+                currentTeamData.score += POINTS_PER_CORRECT_TASK;
+            }
+            updateScoreDisplay();
+
+            if (!currentTeamData.completedGlobalPosts[`post${postNum}`]) { 
+                currentTeamData.completedGlobalPosts[`post${postNum}`] = true; 
+                currentTeamData.completedPostsCount++; 
+            }
+            proceedToNextPostOrFinish(postNum);
+
+        } else { // Feil svar
+            currentTeamData.taskAttempts[`post${postNum}`]++;
+            currentTeamData.score -= POINTS_DEDUCTION_PER_WRONG_TASK_ANSWER;
+            if (currentTeamData.score < 0) currentTeamData.score = 0; // Ikke negativ poengsum
+            updateScoreDisplay();
+
+            const attemptsLeft = MAX_ATTEMPTS_PER_TASK - currentTeamData.taskAttempts[`post${postNum}`];
+            if (attemptCounterElement) {
+                attemptCounterElement.textContent = `Feil svar. Forsøk igjen: ${attemptsLeft > 0 ? attemptsLeft : 0}`;
+            }
+            
+            feedbackElement.textContent = 'Feil svar, prøv igjen.'; 
+            feedbackElement.classList.add('error', 'shake');
+            if(taskInput) { 
+                taskInput.classList.add('shake'); 
+                setTimeout(() => { taskInput.classList.remove('shake'); }, 400);
+                taskInput.focus(); 
+                taskInput.select(); 
+            }
+            setTimeout(() => { feedbackElement.classList.remove('shake'); }, 400);
+
+            if (currentTeamData.taskAttempts[`post${postNum}`] >= MAX_ATTEMPTS_PER_TASK) {
+                feedbackElement.textContent = `Ingen flere forsøk igjen på denne oppgaven. Går videre... (0 poeng for denne)`;
+                feedbackElement.className = 'feedback error'; // Behold error-stil
+                 if (taskInput) taskInput.disabled = true;
+                const taskButton = document.querySelector(`#post-${postNum}-page .check-task-btn`);
+                if(taskButton) taskButton.disabled = true;
+                
+                // Markerer som "fullført" for progresjon, men uten poeng.
+                if (!currentTeamData.completedGlobalPosts[`post${postNum}`]) { 
+                     currentTeamData.completedGlobalPosts[`post${postNum}`] = true; // For å unngå å komme tilbake hit
+                     currentTeamData.completedPostsCount++; 
+                }
+                proceedToNextPostOrFinish(postNum);
+            }
+        }
+        saveState();
+    }
+    function updateUIAfterLoad() { if (!currentTeamData) { resetAllPostUIs(); return; } for (let i = 1; i <= TOTAL_POSTS; i++) { if (document.getElementById(`post-${i}-page`)) resetPageUI(`post-${i}-page`); } if (currentTeamData && currentTeamData.score !== undefined) updateScoreDisplay(); }
     
     if (startWithTeamCodeButton) { startWithTeamCodeButton.addEventListener('click', () => { initializeTeam(teamCodeInput.value); }); } 
     if (teamCodeInput) { teamCodeInput.addEventListener('keypress', function(event) { if (event.key === 'Enter') { event.preventDefault(); if (startWithTeamCodeButton) startWithTeamCodeButton.click(); } }); }
@@ -133,8 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateUIAfterLoad(); 
         if(currentTeamData) {
             console.log(`Gjenopprettet tilstand for ${currentTeamData.name}.`);
-            // Start GPS sporing for kartet hvis et spill er i gang (uavhengig av lyd nå)
-            if (currentTeamData.completedPostsCount < TOTAL_POSTS && typeof google !== 'undefined' && google.maps && map) { 
+            if (currentTeamData.completedPostsCount < TOTAL_POSTS && typeof google !== 'undefined' && google.maps && map) { // Ingen sjekk for isGpsAudioEnabled her lenger
                 startContinuousUserPositionUpdate();
             }
         }
@@ -143,4 +264,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 });
-/* Version: #1 (PoC Lærere - Uten Lyd) */
+/* Version: #2 (PoC Lærere - Uten Lyd) */

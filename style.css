@@ -1,11 +1,11 @@
-/* Version: #1 (PoC Lærere - Uten Lyd) */
+/* Version: #2 (PoC Lærere - Uten Lyd) */
 /* === GENERELLE STILER - POC LÆRERE === */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
     background-color: #e9ecef; 
     color: #212529; 
     margin: 0;
-    padding: 20px; /* Standard padding, ingen ekstra for lydkontroller */
+    padding: 20px;
     display: flex;
     justify-content: center;
     align-items: flex-start;
@@ -22,6 +22,30 @@ body {
     text-align: center;
     border: 1px solid #dee2e6; 
 }
+
+/* === POENGVISNING === */
+#score-display {
+    text-align: right; /* Høyrejuster poengsum */
+    margin-bottom: 15px;
+    padding: 5px 10px;
+    font-size: 1.1em;
+    font-weight: 500;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    display: none; /* Starter skjult, vises av JS */
+}
+#current-score {
+    font-weight: bold;
+    color: #007bff;
+}
+.attempt-counter {
+    font-size: 0.85em;
+    color: #6c757d;
+    margin-top: 8px;
+    min-height: 1.2em; /* For å unngå hopp når tekst legges til */
+}
+
 
 /* === TAB NAVIGASJON - POC LÆRERE === */
 .tabs { margin-bottom: 25px; border-bottom: 2px solid #dee2e6; padding-bottom: 10px; }
@@ -87,4 +111,4 @@ button:disabled { background-color: #adb5bd; border-color: #adb5bd; color: #6c75
 /* Ingen lyd-kontroller styling nødvendig */
 
 /* Slutt på filen */
-/* Version: #1 (PoC Lærere - Uten Lyd) */
+/* Version: #2 (PoC Lærere - Uten Lyd) */
